@@ -1,4 +1,4 @@
-{{- /* Deprecate site.Author.email in favor of site.Params.author.email */}}
+{{- /* 获取作者信息的逻辑 */ -}}
 {{- $authorEmail := "" }}
 {{- with site.Params.author }}
   {{- if reflect.IsMap . }}
@@ -13,7 +13,6 @@
   {{- end }}
 {{- end }}
 
-{{- /* Deprecate site.Author.name in favor of site.Params.author.name */}}
 {{- $authorName := "" }}
 {{- with site.Params.author }}
   {{- if reflect.IsMap . }}
@@ -30,18 +29,24 @@
   {{- end }}
 {{- end }}
 
+{{- /* 配置页面上下文和过滤内容 */ -}}
 {{- $pctx := . }}
 {{- if .IsHome }}{{ $pctx = site }}{{ end }}
 {{- $pages := slice }}
 {{- if or $.IsHome $.IsSection }}
-{{- $pages = $pctx.RegularPages }}
+  {{- /* 仅选择 content/posts 下的页面，并排除其他类型 */ -}}
+  {{- $pages = (where (where $pctx.RegularPages ".Section" "posts") "Kind" "page")  -}}
 {{- else }}
-{{- $pages = $pctx.Pages }}
+  {{- $pages = (where (where $pctx.Pages ".Section" "posts") "Kind" "page")  -}}
 {{- end }}
+
+{{- /* 限制文章数量 */ -}}
 {{- $limit := site.Config.Services.RSS.Limit }}
 {{- if ge $limit 1 }}
-{{- $pages = $pages | first $limit }}
+  {{- $pages = $pages | first $limit }}
 {{- end }}
+
+{{- /* 输出RSS的XML结构 */ -}}
 {{- printf "<?xml version=\"1.0\" encoding=\"utf-8\" standalone=\"yes\"?>" | safeHTML }}
 <rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:content="http://purl.org/rss/1.0/modules/content/">
   <channel>
@@ -72,10 +77,7 @@
       <pubDate>{{ .PublishDate.Format "Mon, 02 Jan 2006 15:04:05 -0700" | safeHTML }}</pubDate>
       {{- with $authorEmail }}<author>{{ . }}{{ with $authorName }} ({{ . }}){{ end }}</author>{{ end }}
       <guid>{{ .Permalink }}</guid>
-      <description>{{ with .Description | html }}{{ . }}{{ else }}{{ .Summary | html }}{{ end -}}</description>
-      {{- if and site.Params.ShowFullTextinRSS .Content }}
-      <content:encoded>{{ (printf "<![CDATA[%s]]>" .Content) | safeHTML }}</content:encoded>
-      {{- end }}
+      <description>{{ .Content | html }}</description>
     </item>
     {{- end }}
     {{- end }}
